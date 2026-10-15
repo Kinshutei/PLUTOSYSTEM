@@ -5,29 +5,37 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>PLUTOSYSTEM</title>
 <style>
-  :root { --ink: #1f2328; --sub: #59636e; --line: #d1d9e0; --bg: #f6f8fa; --card: #fff; --accent: #0969da; }
+  /* 配色は「白百合と金鷲亭」（鉛白・喉のうす紅・淡い太い茎の緑・金色）。色の境目には薄い灰色の線を挟む（セパレーション） */
+  :root {
+    --bg: #f1f0ee; --card: #fff; --ink: #2f2d2a; --sub: #6b675f; --line: #dcd9d3;
+    --gold: #d1a218; --gold-soft: #faf5e6;
+    --serif: "Yu Mincho", YuMincho, "Hiragino Mincho ProN", "Noto Serif JP", serif;
+  }
   * { box-sizing: border-box; }
   body { margin: 0; background: var(--bg); color: var(--ink); line-height: 1.6;
          font-family: system-ui, -apple-system, "Segoe UI", "Hiragino Sans", "Yu Gothic UI", Meiryo, sans-serif; }
-  main { max-width: 640px; margin: 0 auto; padding: 32px 16px; }
-  h1 { font-size: 28px; margin: 0 0 4px; letter-spacing: .04em; }
-  .lead { color: var(--sub); margin: 0 0 24px; }
+  main { max-width: 640px; margin: 0 auto; padding: 40px 16px 48px; }
+  h1 { font-family: var(--serif); font-weight: 600; font-size: 32px; letter-spacing: .24em; margin: 0; line-height: 1.3; }
+  .bar { width: 48px; height: 2px; background: var(--gold); margin: 14px 0 16px; }
+  .lead { color: var(--sub); margin: 0 0 28px; }
   ul { list-style: none; padding: 0; margin: 0; }
   li a { display: block; background: var(--card); border: 1px solid var(--line); border-radius: 8px;
-         padding: 16px; color: inherit; text-decoration: none; }
-  li a:hover { border-color: var(--accent); }
+         padding: 18px 16px; color: inherit; text-decoration: none; transition: border-color .15s, background .15s; }
+  li a:hover { border-color: var(--gold); background: var(--gold-soft); }
   li + li { margin-top: 12px; }
-  .name { font-weight: 600; color: var(--accent); }
-  .desc { color: var(--sub); font-size: 14px; }
+  .name { font-family: var(--serif); font-weight: 600; font-size: 18px; letter-spacing: .2em; }
+  .name small { font-size: 13px; color: var(--sub); letter-spacing: .1em; font-weight: 400; margin-left: 8px; }
+  .desc { color: var(--sub); font-size: 14px; margin-top: 4px; }
 </style>
 </head>
 <body>
 <main>
   <h1>PLUTOSYSTEM</h1>
+  <div class="bar"></div>
   <p class="lead">ファンコミュニティー向けの汎用ツール・ミニアプリ集です。</p>
   <ul>
-    <li><a href="/vote/">
-      <div class="name">投票文メーカー</div>
+    <li><a href="/ballot/">
+      <div class="name">BALLOT<small>- 投票用定型文メーカー -</small></div>
       <div class="desc">ミューコミVRなどの楽曲投票に使う、決まった形の投稿文を作ります。</div>
     </a></li>
   </ul>

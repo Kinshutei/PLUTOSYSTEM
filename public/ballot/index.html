@@ -1,0 +1,467 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>BALLOT - 投票用定型文メーカー - | PLUTOSYSTEM</title>
+<style>
+  /* 配色は「白百合と金鷲亭」（鉛白・喉のうす紅・淡い太い茎の緑・金色）。色の境目には薄い灰色の線を挟む（セパレーション）。
+     金・うす紅・緑の上に乗る文字は、白だと読みにくいので墨色にする */
+  :root {
+    --bg: #f1f0ee; --card: #fff; --ink: #2f2d2a; --sub: #6b675f; --line: #dcd9d3;
+    --gold: #d1a218; --gold-soft: #faf5e6; --rose: #d091a6; --rose-soft: #f8edf1; --green: #8abd7e; --err: #b4232f;
+    --serif: "Yu Mincho", YuMincho, "Hiragino Mincho ProN", "Noto Serif JP", serif;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink); line-height: 1.6;
+         font-family: system-ui, -apple-system, "Segoe UI", "Hiragino Sans", "Yu Gothic UI", Meiryo, sans-serif; }
+  body.locked { overflow: hidden; }
+  header.site { padding: 12px 16px; border-bottom: 1px solid var(--line); }
+  header.site a { color: var(--sub); text-decoration: none; font-size: 13px; letter-spacing: .12em; }
+  main { max-width: 640px; margin: 0 auto; padding: 28px 16px 48px; }
+
+  .title { display: flex; align-items: flex-start; gap: 12px; margin-bottom: 24px; }
+  .title .names { flex: 1; min-width: 0; }
+  h1 { font-family: var(--serif); font-weight: 600; font-size: 32px; letter-spacing: .24em; margin: 0; line-height: 1.3; }
+  .subtitle { font-family: var(--serif); color: var(--sub); font-size: 14px; letter-spacing: .14em; margin: 2px 0 0; }
+  .bar { width: 48px; height: 2px; background: var(--gold); margin-top: 14px; }
+
+  section { background: var(--card); border: 1px solid var(--line); border-radius: 8px; padding: 18px 16px; margin-bottom: 16px; }
+  h2, label.field { display: block; font-size: 12px; font-weight: 600; letter-spacing: .2em; color: var(--sub); margin: 0 0 8px; }
+  .group + .group { margin-top: 16px; }
+  input[type=text] { width: 100%; padding: 10px 12px; font: inherit; font-size: 16px; color: var(--ink); background: var(--card);
+                     border: 1px solid var(--line); border-radius: 6px; outline: none; transition: border-color .15s, box-shadow .15s; }
+  input[type=text]:focus { border-color: var(--gold); box-shadow: 0 0 0 3px rgba(209, 162, 24, .18); }
+  input[type=checkbox] { accent-color: var(--rose); width: 16px; height: 16px; margin: 0; }
+
+  button { font: inherit; font-size: 14px; padding: 7px 16px; border: 1px solid var(--line); border-radius: 6px;
+           background: var(--card); color: var(--ink); cursor: pointer; transition: border-color .15s, background .15s; }
+  button:hover:not(:disabled) { border-color: var(--gold); }
+  button:disabled { opacity: .45; cursor: default; }
+  button.primary { background: var(--gold); border-color: var(--gold); font-weight: 600; letter-spacing: .12em; }
+  button.primary:hover:not(:disabled) { background: #dcae2a; }
+  button.danger { background: var(--rose-soft); border-color: var(--rose); }
+  button.danger:hover:not(:disabled) { background: #f2dde5; border-color: var(--rose); }
+  button.small { padding: 3px 12px; font-size: 13px; }
+  button.memory { font-family: var(--serif); font-size: 14px; letter-spacing: .2em; padding: 8px 14px; border-color: var(--gold); margin-top: 6px; }
+  button.memory:hover { background: var(--gold-soft); }
+
+  .note { color: var(--sub); font-size: 13px; margin: 6px 0 0; }
+  .note.err { color: var(--err); }
+  .row { display: flex; gap: 8px; }
+  .row input { flex: 1; min-width: 0; }
+
+  /* 候補の一覧。入力欄の真下に開いて下の項目を押し下げる（アコーディオン）。欄の上には重ねない */
+  .suggest { display: grid; grid-template-rows: 0fr; overflow: hidden; transition: grid-template-rows .22s ease, margin-top .22s ease; }
+  .suggest.open { grid-template-rows: 1fr; margin-top: 6px; }
+  .suggest ul { min-height: 0; max-height: 344px; overflow-y: auto; list-style: none; margin: 0; padding: 0;
+                border: 0 solid var(--line); border-radius: 6px; }
+  .suggest.open ul { border-width: 1px; }    /* 閉じているときに枠線の分だけ線が残らないよう、開いたときだけ枠を付ける */
+  .suggest li { display: flex; align-items: baseline; gap: 12px; padding: 9px 12px; line-height: 1.5; cursor: pointer; border-top: 1px solid var(--line); }
+  .suggest li:first-child { border-top: 0; }
+  .suggest li .value { overflow-wrap: anywhere; }
+  .suggest li .label { margin-left: auto; color: var(--sub); font-size: 12px; text-align: right; flex-shrink: 0; max-width: 45%; overflow-wrap: anywhere; }
+  .suggest li:hover, .suggest li.active { background: var(--gold-soft); }
+  .suggest li.active { box-shadow: inset 3px 0 0 var(--gold); }
+
+  .tags { list-style: none; padding: 0; margin: 0 0 12px; }
+  .tags li { display: flex; align-items: center; gap: 10px; padding: 8px 0; border-bottom: 1px solid var(--line); }
+  .tags .tag { flex: 1; overflow-wrap: anywhere; }
+  .tags .tag.off { color: var(--sub); text-decoration: line-through; text-decoration-color: var(--rose); text-decoration-thickness: 2px; }
+  .tags .kind { color: var(--sub); font-size: 11px; letter-spacing: .1em; }
+  .tags label { display: inline-flex; align-items: center; gap: 4px; font-size: 13px; color: var(--sub); white-space: nowrap; cursor: pointer; }
+
+  #output { display: block; width: 100%; min-height: 136px; padding: 14px 16px; text-align: left; white-space: pre-wrap; overflow-wrap: anywhere;
+            font-size: 16px; line-height: 1.75; background: var(--gold-soft); border: 1px dashed var(--gold); border-radius: 6px; }
+  #output:hover:not(:disabled) { border-style: solid; }
+  #output:disabled { opacity: 1; color: var(--sub); background: var(--bg); border-color: var(--line); }
+  .actions { display: flex; justify-content: flex-end; margin-top: 12px; }
+
+  /* MEMORY（保存した投稿文）。画面に重ねて開く */
+  .overlay { position: fixed; inset: 0; z-index: 10; display: flex; align-items: flex-start; justify-content: center;
+             padding: 48px 16px; background: rgba(47, 45, 42, .38); }
+  .overlay[hidden] { display: none; }
+  .panel { width: 100%; max-width: 560px; max-height: calc(100vh - 96px); overflow-y: auto; background: var(--card);
+           border: 1px solid var(--line); border-radius: 8px; padding: 18px 16px; }
+  .panel-head { display: flex; align-items: center; justify-content: space-between; gap: 12px;
+                padding-bottom: 10px; margin-bottom: 4px; border-bottom: 2px solid var(--gold); }
+  .panel-head h2 { font-family: var(--serif); font-size: 18px; letter-spacing: .24em; color: var(--ink); margin: 0; }
+  .history { list-style: none; padding: 0; margin: 0; }
+  .history li { padding: 12px 0; border-bottom: 1px solid var(--line); }
+  .history li:last-child { border-bottom: 0; }
+  .history .text { white-space: pre-wrap; overflow-wrap: anywhere; font-size: 14px; }
+  .history .meta { display: flex; align-items: center; gap: 8px; margin-top: 8px; }
+  .history .date { flex: 1; color: var(--sub); font-size: 12px; }
+
+  #toast { position: fixed; left: 50%; bottom: 24px; z-index: 20; transform: translateX(-50%); background: var(--green); color: var(--ink);
+           padding: 8px 18px; border-radius: 6px; font-size: 14px; font-weight: 600; letter-spacing: .06em;
+           opacity: 0; transition: opacity .2s; pointer-events: none; }
+  #toast.show { opacity: 1; }
+</style>
+</head>
+<body>
+<header class="site"><a href="/">← PLUTOSYSTEM</a></header>
+<main>
+  <div class="title">
+    <div class="names">
+      <h1>BALLOT</h1>
+      <p class="subtitle">- 投票用定型文メーカー -</p>
+      <div class="bar"></div>
+    </div>
+    <button type="button" class="memory" id="memory">MEMORY</button>
+  </div>
+
+  <section>
+    <div class="group">
+      <label class="field" for="singer">Singer</label>
+      <input type="text" id="singer" autocomplete="off" role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="singer-list">
+      <div class="suggest" id="singer-box"><ul id="singer-list" role="listbox"></ul></div>
+      <p class="note" id="singer-note" hidden></p>
+    </div>
+    <div class="group">
+      <label class="field" for="song">曲名</label>
+      <input type="text" id="song" autocomplete="off" role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="song-list">
+      <div class="suggest" id="song-box"><ul id="song-list" role="listbox"></ul></div>
+      <p class="note" id="song-note" hidden></p>
+    </div>
+  </section>
+
+  <section>
+    <h2>タグ</h2>
+    <ul class="tags" id="tags"></ul>
+    <div class="row">
+      <input type="text" id="new-tag" placeholder="追加するタグ（# は無くても可）" autocomplete="off">
+      <button type="button" id="add-tag">追加</button>
+    </div>
+    <p class="note err" id="tag-error" hidden></p>
+  </section>
+
+  <section>
+    <h2>投稿文</h2>
+    <button type="button" id="output" disabled></button>
+    <p class="note">欄をクリックすると、投稿文をコピーします。</p>
+    <div class="actions"><button type="button" class="primary" id="save" disabled>保存</button></div>
+  </section>
+</main>
+
+<div class="overlay" id="memory-panel" hidden>
+  <div class="panel" role="dialog" aria-modal="true" aria-labelledby="memory-title">
+    <div class="panel-head">
+      <h2 id="memory-title">MEMORY</h2>
+      <button type="button" class="small" id="memory-close">閉じる</button>
+    </div>
+    <ul class="history" id="history"></ul>
+  </div>
+</div>
+<div id="toast" role="status" aria-live="polite"></div>
+
+<script>
+const DEFAULT_TAGS = ['VTuber楽曲ランキング', 'ミューコミVR']
+const KEY_TAGS = 'pluto.vote.tags'          // 追加したタグ（名前を変える前のキーのまま。保存済みの内容を引き継ぐため）
+const KEY_HISTORY = 'pluto.vote.history'    // 保存した投稿文
+const EMPTY_TEXT = 'Singer と曲名を入れると、ここに投稿文ができます。'
+
+const $ = (id) => document.getElementById(id)
+const excluded = new Set()                  // 「除外」にチェックが入っているタグ
+let addedTags = load(KEY_TAGS)
+let history = load(KEY_HISTORY)
+let singerItems = []
+let songItems = []
+
+// ブラウザの保存領域は使えない環境（プライベートウインドウ等）もあるため、失敗しても画面は動かす
+function load(key) {
+  try { return JSON.parse(localStorage.getItem(key)) ?? [] } catch { return [] }
+}
+function store(key, value) {
+  try { localStorage.setItem(key, JSON.stringify(value)); return true } catch { return false }
+}
+
+let toastTimer
+function toast(message) {
+  $('toast').textContent = message
+  $('toast').classList.add('show')
+  clearTimeout(toastTimer)
+  toastTimer = setTimeout(() => $('toast').classList.remove('show'), 1600)
+}
+
+function showNote(id, message, isError = false) {
+  $(id).textContent = message
+  $(id).classList.toggle('err', isError)
+  $(id).hidden = !message
+}
+
+function activeTags() {
+  return [...DEFAULT_TAGS, ...addedTags].filter((t) => !excluded.has(t))
+}
+
+function buildText() {
+  const singer = $('singer').value.trim()
+  const song = $('song').value.trim()
+  if (!singer || !song) return ''
+  const tags = activeTags()
+  return `${singer}の『${song}』に投票します！` + (tags.length ? '\n\n' + tags.map((t) => '#' + t).join('\n') : '')
+}
+
+function update() {
+  const text = buildText()
+  $('output').textContent = text || EMPTY_TEXT
+  $('output').disabled = !text
+  $('save').disabled = !text
+}
+
+// 入力欄の真下に開く候補の一覧。入力した文字を含む候補だけを出し、↑↓・Enter でも選べる
+function attachSuggest(input, box, getItems, showAllWhenEmpty) {
+  const list = box.querySelector('ul')
+  const norm = (s) => s.normalize('NFKC').toLowerCase()
+  let matches = []
+  let active = -1
+
+  function open() {
+    const q = norm(input.value.trim())
+    const items = getItems()
+    matches = q ? items.filter((it) => norm(it.search).includes(q)) : (showAllWhenEmpty ? items : [])
+    // 入力済みの値そのものしか残らないなら、開いておく意味が無いので閉じる
+    if (matches.length === 1 && matches[0].value === input.value.trim()) matches = []
+    active = -1
+    list.replaceChildren(...matches.map((it, i) => {
+      const li = document.createElement('li')
+      li.setAttribute('role', 'option')
+      const value = document.createElement('span')
+      value.className = 'value'
+      value.textContent = it.value
+      li.append(value)
+      if (it.label) {
+        const label = document.createElement('span')
+        label.className = 'label'
+        label.textContent = it.label
+        li.append(label)
+      }
+      // mousedown で選ぶ（click だと先に入力欄のフォーカスが外れて一覧が閉じるため）
+      li.addEventListener('mousedown', (e) => { e.preventDefault(); choose(i) })
+      return li
+    }))
+    list.scrollTop = 0
+    box.classList.toggle('open', matches.length > 0)
+    input.setAttribute('aria-expanded', String(matches.length > 0))
+  }
+  function close() {
+    box.classList.remove('open')
+    input.setAttribute('aria-expanded', 'false')
+    active = -1
+  }
+  function choose(i) {
+    input.value = matches[i].value
+    close()
+    update()
+  }
+  function setActive(i) {
+    active = i
+    ;[...list.children].forEach((li, j) => li.classList.toggle('active', j === i))
+    list.children[i]?.scrollIntoView({ block: 'nearest' })
+  }
+
+  input.addEventListener('focus', open)
+  input.addEventListener('input', open)
+  input.addEventListener('blur', close)
+  input.addEventListener('keydown', (e) => {
+    if (e.isComposing) return
+    if (!box.classList.contains('open')) {
+      if (e.key === 'ArrowDown') { open(); e.preventDefault() }
+      return
+    }
+    if (e.key === 'ArrowDown') { setActive(Math.min(active + 1, matches.length - 1)); e.preventDefault() }
+    else if (e.key === 'ArrowUp') { setActive(Math.max(active - 1, 0)); e.preventDefault() }
+    else if (e.key === 'Enter' && active >= 0) { choose(active); e.preventDefault() }
+    else if (e.key === 'Escape') close()
+  })
+  return () => { if (document.activeElement === input) open() }    // 候補を読み込み終えたときの再表示用
+}
+
+// 英字の名前を先に A→Z、続けて読みの五十音順
+function sortSingers(singers) {
+  const latin = (s) => /^[A-Za-z]/.test(s.name)
+  return singers.slice().sort((a, b) => {
+    if (latin(a) !== latin(b)) return latin(a) ? -1 : 1
+    if (latin(a)) return a.name.localeCompare(b.name, 'en', { sensitivity: 'base' })
+    return (a.kana || a.name).localeCompare(b.kana || b.name, 'ja')
+  })
+}
+
+function renderTags() {
+  $('tags').replaceChildren(...[...DEFAULT_TAGS, ...addedTags].map((tag) => {
+    const li = document.createElement('li')
+    const name = document.createElement('span')
+    name.className = 'tag' + (excluded.has(tag) ? ' off' : '')
+    name.textContent = '#' + tag
+    li.append(name)
+    if (DEFAULT_TAGS.includes(tag)) {
+      const kind = document.createElement('span')
+      kind.className = 'kind'
+      kind.textContent = 'デフォルト'
+      li.append(kind)
+    }
+    const label = document.createElement('label')
+    const box = document.createElement('input')
+    box.type = 'checkbox'
+    box.checked = excluded.has(tag)
+    box.addEventListener('change', () => {
+      box.checked ? excluded.add(tag) : excluded.delete(tag)
+      renderTags()
+      update()
+    })
+    label.append(box, '除外')
+    li.append(label)
+    if (!DEFAULT_TAGS.includes(tag)) {
+      const del = document.createElement('button')
+      del.type = 'button'
+      del.className = 'small danger'
+      del.textContent = '削除'
+      del.addEventListener('click', () => {
+        addedTags = addedTags.filter((t) => t !== tag)
+        excluded.delete(tag)
+        store(KEY_TAGS, addedTags)
+        renderTags()
+        update()
+      })
+      li.append(del)
+    }
+    return li
+  }))
+}
+
+function addTag() {
+  const tag = $('new-tag').value.trim().replace(/^[#＃]+/, '')
+  if (!tag) return
+  if (/\s/.test(tag)) return showNote('tag-error', 'タグに空白は使えません。', true)
+  if (DEFAULT_TAGS.includes(tag) || addedTags.includes(tag)) return showNote('tag-error', 'そのタグはすでにあります。', true)
+  addedTags.push(tag)
+  store(KEY_TAGS, addedTags)
+  $('new-tag').value = ''
+  showNote('tag-error', '')
+  renderTags()
+  update()
+}
+
+function formatDate(iso) {
+  const d = new Date(iso)
+  const p = (n) => String(n).padStart(2, '0')
+  return `${d.getFullYear()}/${p(d.getMonth() + 1)}/${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`
+}
+
+function renderHistory() {
+  if (!history.length) {
+    const li = document.createElement('li')
+    li.className = 'note'
+    li.textContent = 'まだ保存した投稿文はありません。'
+    return $('history').replaceChildren(li)
+  }
+  $('history').replaceChildren(...history.map((entry, i) => {
+    const li = document.createElement('li')
+    const text = document.createElement('div')
+    text.className = 'text'
+    text.textContent = entry.text
+    const meta = document.createElement('div')
+    meta.className = 'meta'
+    const date = document.createElement('span')
+    date.className = 'date'
+    date.textContent = formatDate(entry.savedAt)
+    const recall = document.createElement('button')
+    recall.type = 'button'
+    recall.className = 'small'
+    recall.textContent = '呼び出す'
+    recall.addEventListener('click', () => recallEntry(entry))
+    const del = document.createElement('button')
+    del.type = 'button'
+    del.className = 'small danger'
+    del.textContent = '削除'
+    del.addEventListener('click', () => {
+      history.splice(i, 1)
+      store(KEY_HISTORY, history)
+      renderHistory()
+    })
+    meta.append(date, recall, del)
+    li.append(text, meta)
+    return li
+  }))
+}
+
+function openMemory() {
+  renderHistory()
+  $('memory-panel').hidden = false
+  document.body.classList.add('locked')
+  $('memory-close').focus()
+}
+function closeMemory() {
+  $('memory-panel').hidden = true
+  document.body.classList.remove('locked')
+  $('memory').focus()
+}
+
+function save() {
+  const text = buildText()
+  if (!text) return
+  history.unshift({ savedAt: new Date().toISOString(), singer: $('singer').value.trim(), song: $('song').value.trim(), tags: activeTags(), text })
+  toast(store(KEY_HISTORY, history) ? '保存しました' : 'このブラウザでは保存できませんでした')
+}
+
+// 保存したときの Singer・曲名・タグの付け外しを入力欄に戻す。消してしまった追加タグは追加し直す
+function recallEntry(entry) {
+  $('singer').value = entry.singer
+  $('song').value = entry.song
+  for (const tag of entry.tags) {
+    if (!DEFAULT_TAGS.includes(tag) && !addedTags.includes(tag)) addedTags.push(tag)
+  }
+  store(KEY_TAGS, addedTags)
+  excluded.clear()
+  for (const tag of [...DEFAULT_TAGS, ...addedTags]) {
+    if (!entry.tags.includes(tag)) excluded.add(tag)
+  }
+  renderTags()
+  update()
+  closeMemory()
+  window.scrollTo({ top: 0, behavior: 'smooth' })
+  toast('呼び出しました')
+}
+
+async function loadJson(url) {
+  const res = await fetch(url)
+  if (!res.ok) throw new Error(res.status)
+  return res.json()
+}
+
+const refreshSinger = attachSuggest($('singer'), $('singer-box'), () => singerItems, true)
+const refreshSong = attachSuggest($('song'), $('song-box'), () => songItems, false)
+
+loadJson('/data/singers.json')
+  .then((singers) => {
+    singerItems = sortSingers(singers).map((s) => ({ value: s.name, search: `${s.name} ${s.kana ?? ''}` }))
+    refreshSinger()
+  })
+  .catch(() => showNote('singer-note', 'Singer の候補を読み込めませんでした。手入力はできます。', true))
+loadJson('/api/songs')
+  .then((songs) => {
+    songItems = songs.map((s) => ({ value: s.title, label: s.artist, search: `${s.title} ${s.artist}` }))
+    refreshSong()
+  })
+  .catch(() => showNote('song-note', '曲名の候補を読み込めませんでした。手入力はできます。', true))
+
+$('singer').addEventListener('input', update)
+$('song').addEventListener('input', update)
+$('add-tag').addEventListener('click', addTag)
+$('new-tag').addEventListener('keydown', (e) => { if (e.key === 'Enter' && !e.isComposing) addTag() })
+$('output').addEventListener('click', () => {
+  const text = buildText()
+  if (!text) return
+  navigator.clipboard.writeText(text).then(() => toast('コピーしました'), () => toast('コピーできませんでした'))
+})
+$('save').addEventListener('click', save)
+$('memory').addEventListener('click', openMemory)
+$('memory-close').addEventListener('click', closeMemory)
+$('memory-panel').addEventListener('click', (e) => { if (e.target === $('memory-panel')) closeMemory() })
+document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && !$('memory-panel').hidden) closeMemory() })
+
+renderTags()
+update()
+</script>
+</body>
+</html>
