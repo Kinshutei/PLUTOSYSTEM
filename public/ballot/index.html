@@ -32,7 +32,6 @@
   input[type=text] { width: 100%; padding: 10px 12px; font: inherit; font-size: 16px; color: var(--ink); background: var(--card);
                      border: 1px solid var(--line); border-radius: 6px; outline: none; transition: border-color .15s, box-shadow .15s; }
   input[type=text]:focus { border-color: var(--gold); box-shadow: 0 0 0 3px rgba(209, 162, 24, .18); }
-  input[type=checkbox] { accent-color: var(--rose); width: 16px; height: 16px; margin: 0; }
 
   button { font: inherit; font-size: 14px; padding: 7px 16px; border: 1px solid var(--line); border-radius: 6px;
            background: var(--card); color: var(--ink); cursor: pointer; transition: border-color .15s, background .15s; }
@@ -51,10 +50,12 @@
   .row { display: flex; gap: 8px; }
   .row input { flex: 1; min-width: 0; }
 
-  /* 候補の一覧。入力欄の真下に開いて下の項目を押し下げる（アコーディオン）。欄の上には重ねない */
-  .suggest { display: grid; grid-template-rows: 0fr; overflow: hidden; transition: grid-template-rows .22s ease, margin-top .22s ease; }
-  .suggest.open { grid-template-rows: 1fr; margin-top: 6px; }
-  .suggest ul { min-height: 0; max-height: 344px; overflow-y: auto; list-style: none; margin: 0; padding: 0;
+  /* 候補の一覧。入力欄の真下に、下の項目の上へ重ねて開く（広がる動きはアコーディオンのまま） */
+  .combo { position: relative; }
+  .suggest { position: absolute; top: 100%; left: 0; right: 0; z-index: 5; margin-top: 6px; border-radius: 6px;
+             display: grid; grid-template-rows: 0fr; overflow: hidden; transition: grid-template-rows .22s ease; }
+  .suggest.open { grid-template-rows: 1fr; box-shadow: 0 10px 28px rgba(47, 45, 42, .16); }
+  .suggest ul { min-height: 0; max-height: 344px; overflow-y: auto; list-style: none; margin: 0; padding: 0; background: var(--card);
                 border: 0 solid var(--line); border-radius: 6px; }
   .suggest.open ul { border-width: 1px; }    /* 閉じているときに枠線の分だけ線が残らないよう、開いたときだけ枠を付ける */
   .suggest li { display: flex; align-items: baseline; gap: 12px; padding: 9px 12px; line-height: 1.5; cursor: pointer; border-top: 1px solid var(--line); }
@@ -64,12 +65,18 @@
   .suggest li:hover, .suggest li.active { background: var(--gold-soft); }
   .suggest li.active { box-shadow: inset 3px 0 0 var(--gold); }
 
-  .tags { list-style: none; padding: 0; margin: 0 0 12px; }
-  .tags li { display: flex; align-items: center; gap: 10px; padding: 8px 0; border-bottom: 1px solid var(--line); }
-  .tags .tag { flex: 1; overflow-wrap: anywhere; }
-  .tags .tag.off { color: var(--sub); text-decoration: line-through; text-decoration-color: var(--rose); text-decoration-thickness: 2px; }
-  .tags .kind { color: var(--sub); font-size: 11px; letter-spacing: .1em; }
-  .tags label { display: inline-flex; align-items: center; gap: 4px; font-size: 13px; color: var(--sub); white-space: nowrap; cursor: pointer; }
+  /* タグは角丸の枠で横に並べる。押すと使う・使わないを切り替え、追加したタグだけ「×」で削除できる */
+  .tags { list-style: none; padding: 2px; margin: 0; display: flex; flex-wrap: wrap; align-content: flex-start; gap: 8px; }
+  .chip { display: inline-flex; align-items: center; max-width: 100%; border: 1px solid var(--gold); border-radius: 999px;
+          background: var(--gold-soft); transition: border-color .15s, background .15s; }
+  .chip button { border: 0; background: transparent; border-radius: 999px; }
+  .chip .toggle { padding: 5px 14px; font-size: 14px; overflow-wrap: anywhere; text-align: left; }
+  .chip.has-del .toggle { padding-right: 4px; }
+  .chip .del { width: 24px; height: 24px; padding: 0; margin-right: 5px; flex-shrink: 0; color: var(--sub); font-size: 15px; line-height: 1; }
+  .chip .del:hover { background: var(--rose-soft); color: var(--ink); }
+  .chip.off { border-color: var(--line); background: var(--card); }
+  .chip.off .toggle { color: var(--sub); text-decoration: line-through; text-decoration-color: var(--rose); text-decoration-thickness: 2px; }
+  .tag-hint { margin: 10px 0 12px; }
 
   #output { display: block; width: 100%; min-height: 136px; padding: 14px 16px; text-align: left; white-space: pre-wrap; overflow-wrap: anywhere;
             font-size: 16px; line-height: 1.75; background: var(--gold-soft); border: 1px dashed var(--gold); border-radius: 6px; }
@@ -93,6 +100,19 @@
   .history .meta { display: flex; align-items: center; gap: 8px; margin-top: 8px; }
   .history .date { flex: 1; color: var(--sub); font-size: 12px; }
 
+  /* PC（幅860px以上）は2カラム。ページはウインドウの高さに収めてスクロールを出さず、
+     左の列が伸びた分（追加したタグ・曲名の候補一覧）はタグの一覧の中のスクロールで吸収する。狭い幅は1列のまま */
+  @media (min-width: 860px) {
+    body { height: 100vh; display: flex; flex-direction: column; }
+    main { flex: 1; min-height: 0; width: 100%; max-width: 1040px; display: flex; flex-direction: column; padding-bottom: 24px; }
+    .layout { flex: 1; min-height: 0; display: flex; align-items: flex-start; gap: 16px; }
+    .col { flex: 1 1 0; min-width: 0; }
+    .col-left { align-self: stretch; min-height: 0; display: flex; flex-direction: column; gap: 16px; }
+    .layout section { margin-bottom: 0; }
+    .tag-section { min-height: 0; display: flex; flex-direction: column; }
+    .tag-section .tags { min-height: 0; overflow-y: auto; }
+  }
+
   #toast { position: fixed; left: 50%; bottom: 24px; z-index: 20; transform: translateX(-50%); background: var(--green); color: var(--ink);
            padding: 8px 18px; border-radius: 6px; font-size: 14px; font-weight: 600; letter-spacing: .06em;
            opacity: 0; transition: opacity .2s; pointer-events: none; }
@@ -111,37 +131,48 @@
     <button type="button" class="memory" id="memory">MEMORY</button>
   </div>
 
+  <div class="layout">
+  <div class="col col-left">
   <section>
     <div class="group">
       <label class="field" for="singer">Singer</label>
-      <input type="text" id="singer" autocomplete="off" role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="singer-list">
-      <div class="suggest" id="singer-box"><ul id="singer-list" role="listbox"></ul></div>
+      <div class="combo">
+        <input type="text" id="singer" autocomplete="off" role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="singer-list">
+        <div class="suggest" id="singer-box"><ul id="singer-list" role="listbox"></ul></div>
+      </div>
       <p class="note" id="singer-note" hidden></p>
     </div>
     <div class="group">
       <label class="field" for="song">曲名</label>
-      <input type="text" id="song" autocomplete="off" role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="song-list">
-      <div class="suggest" id="song-box"><ul id="song-list" role="listbox"></ul></div>
+      <div class="combo">
+        <input type="text" id="song" autocomplete="off" role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="song-list">
+        <div class="suggest" id="song-box"><ul id="song-list" role="listbox"></ul></div>
+      </div>
       <p class="note" id="song-note" hidden></p>
     </div>
   </section>
 
-  <section>
+  <section class="tag-section">
     <h2>タグ</h2>
     <ul class="tags" id="tags"></ul>
+    <p class="note tag-hint">タグを押すと、使う・使わないを切り替えます。</p>
     <div class="row">
       <input type="text" id="new-tag" placeholder="追加するタグ（# は無くても可）" autocomplete="off">
       <button type="button" id="add-tag">追加</button>
     </div>
     <p class="note err" id="tag-error" hidden></p>
   </section>
+  </div>
 
+  <div class="col col-right">
   <section>
     <h2>投稿文</h2>
     <button type="button" id="output" disabled></button>
     <p class="note">欄をクリックすると、投稿文をコピーします。</p>
     <div class="actions"><button type="button" class="primary" id="save" disabled>保存</button></div>
   </section>
+  </div>
+  </div>
 </main>
 
 <div class="overlay" id="memory-panel" hidden>
@@ -287,35 +318,32 @@ function sortSingers(singers) {
   })
 }
 
-function renderTags() {
+// focusTag を渡すと、描き直したあともそのタグにフォーカスを戻す（キーボードで続けて切り替えられるように）
+function renderTags(focusTag) {
   $('tags').replaceChildren(...[...DEFAULT_TAGS, ...addedTags].map((tag) => {
+    const isDefault = DEFAULT_TAGS.includes(tag)
+    const off = excluded.has(tag)
     const li = document.createElement('li')
-    const name = document.createElement('span')
-    name.className = 'tag' + (excluded.has(tag) ? ' off' : '')
-    name.textContent = '#' + tag
-    li.append(name)
-    if (DEFAULT_TAGS.includes(tag)) {
-      const kind = document.createElement('span')
-      kind.className = 'kind'
-      kind.textContent = 'デフォルト'
-      li.append(kind)
-    }
-    const label = document.createElement('label')
-    const box = document.createElement('input')
-    box.type = 'checkbox'
-    box.checked = excluded.has(tag)
-    box.addEventListener('change', () => {
-      box.checked ? excluded.add(tag) : excluded.delete(tag)
-      renderTags()
+    li.className = 'chip' + (off ? ' off' : '') + (isDefault ? '' : ' has-del')
+    const toggle = document.createElement('button')
+    toggle.type = 'button'
+    toggle.className = 'toggle'
+    toggle.textContent = '#' + tag
+    toggle.title = off ? '押すと使います' : '押すと使わなくなります'
+    toggle.setAttribute('aria-pressed', String(!off))
+    toggle.addEventListener('click', () => {
+      off ? excluded.delete(tag) : excluded.add(tag)
+      renderTags(tag)
       update()
     })
-    label.append(box, '除外')
-    li.append(label)
-    if (!DEFAULT_TAGS.includes(tag)) {
+    li.append(toggle)
+    if (!isDefault) {
       const del = document.createElement('button')
       del.type = 'button'
-      del.className = 'small danger'
-      del.textContent = '削除'
+      del.className = 'del'
+      del.textContent = '×'
+      del.title = '削除'
+      del.setAttribute('aria-label', `#${tag} を削除`)
       del.addEventListener('click', () => {
         addedTags = addedTags.filter((t) => t !== tag)
         excluded.delete(tag)
@@ -325,6 +353,7 @@ function renderTags() {
       })
       li.append(del)
     }
+    if (tag === focusTag) queueMicrotask(() => toggle.focus())
     return li
   }))
 }
