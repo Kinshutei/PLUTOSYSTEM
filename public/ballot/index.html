@@ -52,6 +52,12 @@
 
   /* 候補の一覧。入力欄の真下に、下の項目の上へ重ねて開く（広がる動きはアコーディオンのまま） */
   .combo { position: relative; }
+  .combo input[type=text] { padding-right: 44px; }
+  /* 入力欄に文字があるときだけ右端に出すクリア用の × */
+  .clear { position: absolute; top: 50%; right: 8px; transform: translateY(-50%); width: 28px; height: 28px; padding: 0;
+           border: 0; border-radius: 50%; background: transparent; color: var(--sub); font-size: 18px; line-height: 1; }
+  .clear:hover { background: var(--rose-soft); color: var(--ink); }
+  .clear[hidden] { display: none; }
   .suggest { position: absolute; top: 100%; left: 0; right: 0; z-index: 5; margin-top: 6px; border-radius: 6px;
              display: grid; grid-template-rows: 0fr; overflow: hidden; transition: grid-template-rows .22s ease; }
   .suggest.open { grid-template-rows: 1fr; box-shadow: 0 10px 28px rgba(47, 45, 42, .16); }
@@ -138,6 +144,7 @@
       <label class="field" for="singer">Singer</label>
       <div class="combo">
         <input type="text" id="singer" autocomplete="off" role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="singer-list">
+        <button type="button" class="clear" id="singer-clear" aria-label="Singer を空にする" title="空にする" hidden>×</button>
         <div class="suggest" id="singer-box"><ul id="singer-list" role="listbox"></ul></div>
       </div>
       <p class="note" id="singer-note" hidden></p>
@@ -146,6 +153,7 @@
       <label class="field" for="song">曲名</label>
       <div class="combo">
         <input type="text" id="song" autocomplete="off" role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="song-list">
+        <button type="button" class="clear" id="song-clear" aria-label="曲名を空にする" title="空にする" hidden>×</button>
         <div class="suggest" id="song-box"><ul id="song-list" role="listbox"></ul></div>
       </div>
       <p class="note" id="song-note" hidden></p>
@@ -225,12 +233,16 @@ function activeTags() {
   return [...DEFAULT_TAGS, ...addedTags].filter((t) => !excluded.has(t))
 }
 
+// 定型文: (Singer名)の『曲名』に投票します！ ＋ 空行 ＋ タグ（1行に1つ）。Singer名は半角の丸括弧で囲む
+function composeText(singer, song, tags) {
+  return `(${singer})の『${song}』に投票します！` + (tags.length ? '\n\n' + tags.map((t) => '#' + t).join('\n') : '')
+}
+
 function buildText() {
   const singer = $('singer').value.trim()
   const song = $('song').value.trim()
   if (!singer || !song) return ''
-  const tags = activeTags()
-  return `${singer}の『${song}』に投票します！` + (tags.length ? '\n\n' + tags.map((t) => '#' + t).join('\n') : '')
+  return composeText(singer, song, activeTags())
 }
 
 function update() {
@@ -238,6 +250,8 @@ function update() {
   $('output').textContent = text || EMPTY_TEXT
   $('output').disabled = !text
   $('save').disabled = !text
+  $('singer-clear').hidden = !$('singer').value
+  $('song-clear').hidden = !$('song').value
 }
 
 // 入力欄の真下に開く候補の一覧。入力した文字を含む候補だけを出し、↑↓・Enter でも選べる
@@ -388,7 +402,7 @@ function renderHistory() {
     const li = document.createElement('li')
     const text = document.createElement('div')
     text.className = 'text'
-    text.textContent = entry.text
+    text.textContent = composeText(entry.singer, entry.song, entry.tags)    // 定型文を直す前に保存したものも、今の定型文で表示する
     const meta = document.createElement('div')
     meta.className = 'meta'
     const date = document.createElement('span')
@@ -476,6 +490,14 @@ loadJson('/api/songs')
 
 $('singer').addEventListener('input', update)
 $('song').addEventListener('input', update)
+// × で欄を空にし、そのまま入力できるようにする（Singer は空になると候補一覧が開く）
+for (const name of ['singer', 'song']) {
+  $(`${name}-clear`).addEventListener('click', () => {
+    $(name).value = ''
+    $(name).focus()
+    $(name).dispatchEvent(new Event('input'))
+  })
+}
 $('add-tag').addEventListener('click', addTag)
 $('new-tag').addEventListener('keydown', (e) => { if (e.key === 'Enter' && !e.isComposing) addTag() })
 $('output').addEventListener('click', () => {
