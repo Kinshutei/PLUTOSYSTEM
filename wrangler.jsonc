@@ -1,0 +1,13 @@
+{
+  "name": "plutosystem",
+  "compatibility_date": "2026-10-15",
+  // Concentus（同じアカウントの workers.dev）から曲一覧を取るため、fetch を公開インターネット経由にする。
+  // 既定では同じゾーンの Worker への fetch がエラー1042になる
+  "compatibility_flags": ["global_fetch_strictly_public"],
+  "main": "worker/index.js",
+  // public/ の静的ファイルはそのまま配信し、該当するファイルが無いリクエストだけ Worker に回る
+  "assets": {
+    "directory": "./public",
+    "binding": "ASSETS"
+  }
+}

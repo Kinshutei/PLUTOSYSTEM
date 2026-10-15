@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PLUTOSYSTEM</title>
+<style>
+  :root { --ink: #1f2328; --sub: #59636e; --line: #d1d9e0; --bg: #f6f8fa; --card: #fff; --accent: #0969da; }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink); line-height: 1.6;
+         font-family: system-ui, -apple-system, "Segoe UI", "Hiragino Sans", "Yu Gothic UI", Meiryo, sans-serif; }
+  main { max-width: 640px; margin: 0 auto; padding: 32px 16px; }
+  h1 { font-size: 28px; margin: 0 0 4px; letter-spacing: .04em; }
+  .lead { color: var(--sub); margin: 0 0 24px; }
+  ul { list-style: none; padding: 0; margin: 0; }
+  li a { display: block; background: var(--card); border: 1px solid var(--line); border-radius: 8px;
+         padding: 16px; color: inherit; text-decoration: none; }
+  li a:hover { border-color: var(--accent); }
+  li + li { margin-top: 12px; }
+  .name { font-weight: 600; color: var(--accent); }
+  .desc { color: var(--sub); font-size: 14px; }
+</style>
+</head>
+<body>
+<main>
+  <h1>PLUTOSYSTEM</h1>
+  <p class="lead">ファンコミュニティー向けの汎用ツール・ミニアプリ集です。</p>
+  <ul>
+    <li><a href="/vote/">
+      <div class="name">投票文メーカー</div>
+      <div class="desc">ミューコミVRなどの楽曲投票に使う、決まった形の投稿文を作ります。</div>
+    </a></li>
+  </ul>
+</main>
+</body>
+</html>
